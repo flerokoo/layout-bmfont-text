@@ -9,9 +9,9 @@ var CAP_HEIGHTS = ['H', 'I', 'N', 'E', 'F', 'K', 'L', 'T', 'U', 'V', 'W', 'X', '
 
 var TAB_ID = '\t'.charCodeAt(0)
 var SPACE_ID = ' '.charCodeAt(0)
-var ALIGN_LEFT = 0, 
-    ALIGN_CENTER = 1, 
-    ALIGN_RIGHT = 2
+var ALIGN_LEFT = 0,
+  ALIGN_CENTER = 1,
+  ALIGN_RIGHT = 2
 
 module.exports = function createLayout(opt) {
   return new TextLayout(opt)
@@ -23,7 +23,7 @@ function TextLayout(opt) {
   this.update(opt)
 }
 
-TextLayout.prototype.update = function(opt) {
+TextLayout.prototype.update = function (opt) {
   opt = xtend({
     measure: this._measure
   }, opt)
@@ -34,18 +34,26 @@ TextLayout.prototype.update = function(opt) {
     throw new Error('must provide a valid bitmap font')
 
   var glyphs = this.glyphs
-  var text = opt.text||'' 
+  var text = opt.text || ''
   var font = opt.font
   this._setupSpaceGlyphs(font)
-  
+
+  var maxLines = opt.maxLines || Number.POSITIVE_INFINITY;
   var lines = wordWrap.lines(text, opt)
+
+  if (typeof maxLines === 'number' && lines.length > Math.abs(maxLines)) {
+    var start = maxLines > 0 ? 0 : lines.length + maxLines;
+    var end = maxLines < 0 ? lines.length : maxLines;
+    lines = lines.slice(start, end);
+  }
+
   var minWidth = opt.width || 0
 
   //clear glyphs
   glyphs.length = 0
 
   //get max line width
-  var maxLineWidth = lines.reduce(function(prev, line) {
+  var maxLineWidth = lines.reduce(function (prev, line) {
     return Math.max(prev, line.width, minWidth)
   }, 0)
 
@@ -54,14 +62,14 @@ TextLayout.prototype.update = function(opt) {
   var y = 0
   var lineHeight = number(opt.lineHeight, font.common.lineHeight)
   var baseline = font.common.base
-  var descender = lineHeight-baseline
+  var descender = lineHeight - baseline
   var letterSpacing = opt.letterSpacing || 0
   var height = lineHeight * lines.length - descender
   var align = getAlignType(this._opt.align)
 
   //draw text along baseline
   y -= height
-  
+
   //the metrics for this text layout
   this._width = maxLineWidth
   this._height = height
@@ -71,35 +79,35 @@ TextLayout.prototype.update = function(opt) {
   this._capHeight = getCapHeight(font)
   this._lineHeight = lineHeight
   this._ascender = lineHeight - descender - this._xHeight
-    
+
   //layout each glyph
   var self = this
-  lines.forEach(function(line, lineIndex) {
+  lines.forEach(function (line, lineIndex) {
     var start = line.start
     var end = line.end
     var lineWidth = line.width
     var lastGlyph
-    
+
     //for each glyph in that line...
-    for (var i=start; i<end; i++) {
+    for (var i = start; i < end; i++) {
       var id = text.charCodeAt(i)
       var glyph = self.getGlyph(font, id)
       if (glyph) {
-        if (lastGlyph) 
+        if (lastGlyph)
           x += getKerning(font, lastGlyph.id, glyph.id)
 
         var tx = x
-        if (align === ALIGN_CENTER) 
-          tx += (maxLineWidth-lineWidth)/2
+        if (align === ALIGN_CENTER)
+          tx += (maxLineWidth - lineWidth) / 2
         else if (align === ALIGN_RIGHT)
-          tx += (maxLineWidth-lineWidth)
+          tx += (maxLineWidth - lineWidth)
 
         glyphs.push({
           position: [tx, y],
           data: glyph,
           index: i,
           line: lineIndex
-        })  
+        })
 
         //move pen forward
         x += glyph.xadvance + letterSpacing
@@ -114,7 +122,7 @@ TextLayout.prototype.update = function(opt) {
   this._linesTotal = lines.length;
 }
 
-TextLayout.prototype._setupSpaceGlyphs = function(font) {
+TextLayout.prototype._setupSpaceGlyphs = function (font) {
   //These are fallbacks, when the font doesn't include
   //' ' or '\t' glyphs
   this._fallbackSpaceGlyph = null
@@ -126,31 +134,31 @@ TextLayout.prototype._setupSpaceGlyphs = function(font) {
   //try to get space glyph
   //then fall back to the 'm' or 'w' glyphs
   //then fall back to the first glyph available
-  var space = getGlyphById(font, SPACE_ID) 
-          || getMGlyph(font) 
-          || font.chars[0]
+  var space = getGlyphById(font, SPACE_ID)
+    || getMGlyph(font)
+    || font.chars[0]
 
   //and create a fallback for tab
   var tabWidth = this._opt.tabSize * space.xadvance
   this._fallbackSpaceGlyph = space
   this._fallbackTabGlyph = xtend(space, {
-    x: 0, y: 0, xadvance: tabWidth, id: TAB_ID, 
+    x: 0, y: 0, xadvance: tabWidth, id: TAB_ID,
     xoffset: 0, yoffset: 0, width: 0, height: 0
   })
 }
 
-TextLayout.prototype.getGlyph = function(font, id) {
+TextLayout.prototype.getGlyph = function (font, id) {
   var glyph = getGlyphById(font, id)
   if (glyph)
     return glyph
-  else if (id === TAB_ID) 
+  else if (id === TAB_ID)
     return this._fallbackTabGlyph
-  else if (id === SPACE_ID) 
+  else if (id === SPACE_ID)
     return this._fallbackSpaceGlyph
   return null
 }
 
-TextLayout.prototype.computeMetrics = function(text, start, end, width) {
+TextLayout.prototype.computeMetrics = function (text, start, end, width) {
   var letterSpacing = this._opt.letterSpacing || 0
   var font = this._opt.font
   var curPen = 0
@@ -168,7 +176,7 @@ TextLayout.prototype.computeMetrics = function(text, start, end, width) {
   }
 
   end = Math.min(text.length, end)
-  for (var i=start; i < end; i++) {
+  for (var i = start; i < end; i++) {
     var id = text.charCodeAt(i)
     var glyph = this.getGlyph(font, id)
 
@@ -192,7 +200,7 @@ TextLayout.prototype.computeMetrics = function(text, start, end, width) {
     }
     count++
   }
-  
+
   //make sure rightmost edge lines up with rendered glyphs
   if (lastGlyph)
     curWidth += lastGlyph.xoffset
@@ -204,12 +212,12 @@ TextLayout.prototype.computeMetrics = function(text, start, end, width) {
   }
 }
 
-//getters for the private vars
-;['width', 'height', 
-  'descender', 'ascender',
-  'xHeight', 'baseline',
-  'capHeight',
-  'lineHeight' ].forEach(addGetter)
+  //getters for the private vars
+  ;['width', 'height',
+    'descender', 'ascender',
+    'xHeight', 'baseline',
+    'capHeight',
+    'lineHeight'].forEach(addGetter)
 
 function addGetter(name) {
   Object.defineProperty(TextLayout.prototype, name, {
@@ -221,8 +229,8 @@ function addGetter(name) {
 //create lookups for private vars
 function wrapper(name) {
   return (new Function([
-    'return function '+name+'() {',
-    '  return this._'+name,
+    'return function ' + name + '() {',
+    '  return this._' + name,
     '}'
   ].join('\n')))()
 }
@@ -238,30 +246,30 @@ function getGlyphById(font, id) {
 }
 
 function getXHeight(font) {
-  for (var i=0; i<X_HEIGHTS.length; i++) {
+  for (var i = 0; i < X_HEIGHTS.length; i++) {
     var id = X_HEIGHTS[i].charCodeAt(0)
     var idx = findChar(font.chars, id)
-    if (idx >= 0) 
+    if (idx >= 0)
       return font.chars[idx].height
   }
   return 0
 }
 
 function getMGlyph(font) {
-  for (var i=0; i<M_WIDTHS.length; i++) {
+  for (var i = 0; i < M_WIDTHS.length; i++) {
     var id = M_WIDTHS[i].charCodeAt(0)
     var idx = findChar(font.chars, id)
-    if (idx >= 0) 
+    if (idx >= 0)
       return font.chars[idx]
   }
   return 0
 }
 
 function getCapHeight(font) {
-  for (var i=0; i<CAP_HEIGHTS.length; i++) {
+  for (var i = 0; i < CAP_HEIGHTS.length; i++) {
     var id = CAP_HEIGHTS[i].charCodeAt(0)
     var idx = findChar(font.chars, id)
-    if (idx >= 0) 
+    if (idx >= 0)
       return font.chars[idx].height
   }
   return 0
@@ -272,7 +280,7 @@ function getKerning(font, left, right) {
     return 0
 
   var table = font.kernings
-  for (var i=0; i<table.length; i++) {
+  for (var i = 0; i < table.length; i++) {
     var kern = table[i]
     if (kern.first === left && kern.second === right)
       return kern.amount
@@ -288,7 +296,7 @@ function getAlignType(align) {
   return ALIGN_LEFT
 }
 
-function findChar (array, value, start) {
+function findChar(array, value, start) {
   start = start || 0
   for (var i = start; i < array.length; i++) {
     if (array[i].id === value) {
